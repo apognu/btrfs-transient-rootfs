@@ -1,0 +1,34 @@
+#!/usr/bin/ash
+
+BTRFS_DEVICE='/dev/sda2'
+
+LIVE_SUBVOLUME='__live/root'
+SNAPSHOTS_SUBVOLUME='__transient/snapshots'
+TRANSIENT_SUBVOLUME='__transient/transient'
+
+run_hook() {
+  mkdir /run/btrfs
+  mount "$BTRFS_DEVICE" /run/btrfs
+  cd /run/btrfs
+  
+  mkdir -p "$SNAPSHOTS_SUBVOLUME" "$TRANSIENT_SUBVOLUME"
+
+  LAST_SNAPSHOT="$(ls -1 $SNAPSHOTS_SUBVOLUME | tail -1)"
+
+  # If this is the first time using transient, snapshot root file system
+  if [ -z "$LAST_SNAPSHOT" ]; then
+    btrfs subvolume snapshot "$LIVE_SUBVOLUME" "${SNAPSHOTS_SUBVOLUME}/$(date -Iseconds)"
+
+    [ $? -ne 0 ] && exit 0
+  fi
+
+  # TODO: Should we backup N transient root file systems?
+  # btrfs subvolume snapshot "$LIVE_SUBVOLUME" "${TRANSIENT_SUBVOLUME}/$(date -Iseconds)"
+
+  # TODO: Handle errors here
+  btrfs subvolume delete "$LIVE_SUBVOLUME"
+  btrfs subvolume snapshot "${SNAPSHOTS_SUBVOLUME}/${LAST_SNAPSHOT}" "$LIVE_SUBVOLUME"
+
+  cd /
+  umount /run/btrfs
+}
