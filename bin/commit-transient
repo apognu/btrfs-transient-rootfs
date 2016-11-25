@@ -1,0 +1,12 @@
+#!/bin/sh
+
+. /etc/btrfs-transient.sh
+
+mkdir /run/btrfs-transient
+mount "$BTRFS_DEVICE" /run/btrfs-transient
+cd /run/btrfs-transient
+
+btrfs subvolume snap "$LIVE_SUBVOLUME" "${SNAPSHOTS_SUBVOLUME}/$(date -Iseconds)"
+
+cd /
+umount /run/btrfs-transient

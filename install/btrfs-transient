@@ -1,6 +1,7 @@
 #!/bin/bash
 
 build() {
+  add_file /etc/btrfs-transient.sh
   add_binary date
   add_runscript
 }

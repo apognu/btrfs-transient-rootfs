@@ -1,12 +1,8 @@
 #!/usr/bin/ash
 
-BTRFS_DEVICE='/dev/sda2'
-
-LIVE_SUBVOLUME='__live/root'
-SNAPSHOTS_SUBVOLUME='__transient/snapshots'
-TRANSIENT_SUBVOLUME='__transient/transient'
-
 run_hook() {
+  . /etc/btrfs-transient.sh
+
   mkdir /run/btrfs
   mount "$BTRFS_DEVICE" /run/btrfs
   cd /run/btrfs
@@ -19,15 +15,23 @@ run_hook() {
   if [ -z "$LAST_SNAPSHOT" ]; then
     btrfs subvolume snapshot "$LIVE_SUBVOLUME" "${SNAPSHOTS_SUBVOLUME}/$(date -Iseconds)"
 
-    [ $? -ne 0 ] && exit 0
+    [ $? -ne 0 ] && return
   fi
 
   # TODO: Should we backup N transient root file systems?
-  # btrfs subvolume snapshot "$LIVE_SUBVOLUME" "${TRANSIENT_SUBVOLUME}/$(date -Iseconds)"
+  btrfs subvolume snapshot "$LIVE_SUBVOLUME" "${TRANSIENT_SUBVOLUME}/$(date -Iseconds)"
+
+  for TRANSIENT in $(ls -1 $TRANSIENT_SUBVOLUME | head -n -${TRANSIENT_RETENTION}); do
+    btrfs subvolume delete "${TRANSIENT_SUBVOLUME}/${TRANSIENT}"
+  done
 
   # TODO: Handle errors here
   btrfs subvolume delete "$LIVE_SUBVOLUME"
   btrfs subvolume snapshot "${SNAPSHOTS_SUBVOLUME}/${LAST_SNAPSHOT}" "$LIVE_SUBVOLUME"
+
+  for SNAPSHOT in $(ls -1 $SNAPSHOTS_SUBVOLUME | head -n -${SNAPSHOTS_RETENTION}); do
+    btrfs subvolume delete "${SNAPSHOTS_SUBVOLUME}/${SNAPSHOT}"
+  done
 
   cd /
   umount /run/btrfs
