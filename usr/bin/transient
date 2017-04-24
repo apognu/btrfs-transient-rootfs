@@ -10,7 +10,11 @@ COMMAND="$1"
 
 case "$COMMAND" in
   'commit')
-    btrfs subvolume snap "$LIVE_SUBVOLUME" "${SNAPSHOTS_SUBVOLUME}/$(date -Iseconds)"
+    btrfs subvolume snapshot -r "$LIVE_SUBVOLUME" "${SNAPSHOTS_SUBVOLUME}/$(date -Iseconds)"
+
+    if [ "$USE_RO_ROOTFS" -eq 1 ]; then
+      transient ro
+    fi
     ;;
 
   'ro')
@@ -23,7 +27,6 @@ case "$COMMAND" in
     btrfs property get "$LIVE_SUBVOLUME" ro
     ;;
 esac
-
 
 cd /
 umount /run/btrfs-transient

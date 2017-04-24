@@ -20,6 +20,8 @@ run_hook() {
     btrfs subvolume snapshot "$LIVE_SUBVOLUME" "${SNAPSHOTS_SUBVOLUME}/$(date -Iseconds)"
 
     [ $? -ne 0 ] && return
+
+    LAST_SNAPSHOT="$(ls -1 $SNAPSHOTS_SUBVOLUME | tail -1)"
   fi
 
   log 'doing backup of transient filesystem'
@@ -36,6 +38,10 @@ run_hook() {
   for SNAPSHOT in $(ls -1 $SNAPSHOTS_SUBVOLUME | head -n -${SNAPSHOTS_RETENTION}); do
     btrfs subvolume delete "${SNAPSHOTS_SUBVOLUME}/${SNAPSHOT}"
   done
+
+  if [ "$USE_RO_ROOTFS" -eq 1 ]; then
+    btrfs property set "$LIVE_SUBVOLUME" ro true
+  fi
 
   cd /
   umount /run/btrfs-transient
