@@ -1,31 +1,35 @@
 #!/usr/bin/ash
 
+log() {
+  echo "btrfs-transient: $*" > /dev/kmsg
+}
+
 run_hook() {
   . /etc/btrfs-transient.sh
 
-  mkdir /run/btrfs
-  mount "$BTRFS_DEVICE" /run/btrfs
-  cd /run/btrfs
+  mkdir -p /run/btrfs-transient
+  mount "$BTRFS_DEVICE" /run/btrfs-transient
+  cd /run/btrfs-transient
   
   mkdir -p "$SNAPSHOTS_SUBVOLUME" "$TRANSIENT_SUBVOLUME"
 
   LAST_SNAPSHOT="$(ls -1 $SNAPSHOTS_SUBVOLUME | tail -1)"
 
-  # If this is the first time using transient, snapshot root file system
   if [ -z "$LAST_SNAPSHOT" ]; then
+    log 'initializing'
     btrfs subvolume snapshot "$LIVE_SUBVOLUME" "${SNAPSHOTS_SUBVOLUME}/$(date -Iseconds)"
 
     [ $? -ne 0 ] && return
   fi
 
-  # TODO: Should we backup N transient root file systems?
+  log 'doing backup of transient filesystem'
   btrfs subvolume snapshot "$LIVE_SUBVOLUME" "${TRANSIENT_SUBVOLUME}/$(date -Iseconds)"
 
   for TRANSIENT in $(ls -1 $TRANSIENT_SUBVOLUME | head -n -${TRANSIENT_RETENTION}); do
     btrfs subvolume delete "${TRANSIENT_SUBVOLUME}/${TRANSIENT}"
   done
 
-  # TODO: Handle errors here
+  log 'deleting live filesystem and restoring last snapshot'
   btrfs subvolume delete "$LIVE_SUBVOLUME"
   btrfs subvolume snapshot "${SNAPSHOTS_SUBVOLUME}/${LAST_SNAPSHOT}" "$LIVE_SUBVOLUME"
 
@@ -34,5 +38,5 @@ run_hook() {
   done
 
   cd /
-  umount /run/btrfs
+  umount /run/btrfs-transient
 }

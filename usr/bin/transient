@@ -1,0 +1,29 @@
+#!/bin/sh
+
+. /etc/btrfs-transient.sh
+
+mkdir -p /run/btrfs-transient
+mount "$BTRFS_DEVICE" /run/btrfs-transient
+cd /run/btrfs-transient
+
+COMMAND="$1"
+
+case "$COMMAND"
+  'commit')
+    btrfs subvolume snap "$LIVE_SUBVOLUME" "${SNAPSHOTS_SUBVOLUME}/$(date -Iseconds)"
+    ;;
+
+  'ro')
+    btrfs property set "$LIVE_SUBVOLUME" ro true
+    btrfs property get "$LIVE_SUBVOLUME" ro
+    ;;
+
+  'rw')
+    btrfs property set "$LIVE_SUBVOLUME" ro false
+    btrfs property get "$LIVE_SUBVOLUME" ro
+    ;;
+esac
+
+
+cd /
+umount /run/btrfs-transient

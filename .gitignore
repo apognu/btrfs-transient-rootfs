@@ -1,0 +1,4 @@
+src/
+pkg/
+btrfs-transient-rootfs/
+*.tar.xz
