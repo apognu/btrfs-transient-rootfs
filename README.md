@@ -9,12 +9,19 @@ initramfs hook for emphemeral root filesystem on btrfs.
 The goal here is to automate as much as possible the use of ephemeral and disposable snapshots as rootfs when running your Linux system on btrfs by restoring the last-committed snapshot of your rootfs the next boot.
 
 ```
-$ touch /etc/newfile
+$ touch /etc/foobar
+touch: cannot touch '/etc/foobar': Read-only file system
+
+$ transient rw
+$ touch /etc/foobar
 $ reboot
 -> File will not exist after reboot
 
-$ touch /srv/newfile
+$ transient rw
+$ touch /srv/foobar
 $ transient commit
+Create a readonly snapshot of '__live/root' in '__transient/snapshots/2017-04-24T18:16:34+02:00'
+Setting rootfs read-only.
 $ reboot
 -> File will be restored from last-commited snapshot
 ```
