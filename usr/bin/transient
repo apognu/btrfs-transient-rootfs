@@ -2,8 +2,21 @@
 
 . /etc/btrfs-transient.sh
 
-mkdir -p /run/btrfs-transient
-mount "$BTRFS_DEVICE" /run/btrfs-transient
+set_readonly() {
+  if [ $1 -eq 0 ]; then
+    echo 'Setting rootfs read-write.'
+    btrfs property set "$LIVE_SUBVOLUME" ro false
+  else
+    echo 'Setting rootfs read-only.'
+    btrfs property set "$LIVE_SUBVOLUME" ro true
+  fi
+}
+
+if ! mountpoint -q /run/btrfs-transient; then
+  mkdir -p /run/btrfs-transient
+  mount "$BTRFS_DEVICE" /run/btrfs-transient
+fi
+
 cd /run/btrfs-transient
 
 COMMAND="$1"
@@ -13,20 +26,21 @@ case "$COMMAND" in
     btrfs subvolume snapshot -r "$LIVE_SUBVOLUME" "${SNAPSHOTS_SUBVOLUME}/$(date -Iseconds)"
 
     if [ "$USE_RO_ROOTFS" -eq 1 ]; then
-      transient ro
+      set_readonly 1
     fi
     ;;
 
   'ro')
-    btrfs property set "$LIVE_SUBVOLUME" ro true
-    btrfs property get "$LIVE_SUBVOLUME" ro
+    set_readonly 1
     ;;
 
   'rw')
-    btrfs property set "$LIVE_SUBVOLUME" ro false
-    btrfs property get "$LIVE_SUBVOLUME" ro
+    set_readonly 0
     ;;
 esac
 
 cd /
-umount /run/btrfs-transient
+
+if mountpoint -q /run/btrfs-transient 2>&1; then
+  umount /run/btrfs-transient
+fi

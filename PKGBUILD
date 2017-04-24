@@ -2,8 +2,8 @@
 
 pkgname=btrfs-transient
 pkgdesc='Use ephemeral BTRFS root filesystems'
-pkgver=0.1
-pkgrel=1
+pkgver=0.3
+pkgrel=3
 arch=('any')
 depends=('mkinitcpio')
 source=('git://github.com/apognu/btrfs-transient-rootfs')
