@@ -8,7 +8,7 @@ cd /run/btrfs-transient
 
 COMMAND="$1"
 
-case "$COMMAND"
+case "$COMMAND" in
   'commit')
     btrfs subvolume snap "$LIVE_SUBVOLUME" "${SNAPSHOTS_SUBVOLUME}/$(date -Iseconds)"
     ;;
