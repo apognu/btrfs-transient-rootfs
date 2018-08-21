@@ -2,6 +2,11 @@
 
 . /etc/btrfs-transient.sh
 
+INFO_SUBVOLUME='/run/btrfs-transient/__transient/info'
+
+COMMAND="$1"; shift
+ARGS="$@"
+
 set_readonly() {
   if [ $1 -eq 0 ]; then
     echo 'Setting rootfs read-write.'
@@ -12,14 +17,56 @@ set_readonly() {
   fi
 }
 
+get_state() {
+  VERBOSE="$1"
+
+  if [ "$(btrfs property get ${LIVE_SUBVOLUME} ro)" == 'ro=true' ]; then
+    WAS_WRITEABLE=0
+    echo -e 'Rootfs subvolume state:\t\t\e[0;32mread-only\e[0m'
+  else
+    WAS_WRITEABLE=1
+    echo -e 'Rootfs subvolume state:\t\t\e[1;31mwriteable\e[0m'
+  fi
+
+  LAST_SNAPSHOT="$(ls -1 $SNAPSHOTS_SUBVOLUME | tail -1)"
+  LAST_TRANSIENT="$(ls -1 $TRANSIENT_SUBVOLUME | tail -1)"
+
+  echo -e "Last snapshot:\t\t\t${LAST_SNAPSHOT}"
+  echo -e "Last transient snapshot:\t${LAST_TRANSIENT}"
+
+  TMPID="$(head -n500 /dev/urandom | md5sum | awk '{print $1}')"
+
+  btrfs subvolume snapshot -r ${LIVE_SUBVOLUME} ${INFO_SUBVOLUME}/${TMPID} > /dev/null
+
+  LAST_SNAPSHOT_DIFF="$(btrfs send -p ${SNAPSHOTS_SUBVOLUME}/${LAST_SNAPSHOT} ${INFO_SUBVOLUME}/${TMPID} 2> /dev/null | wc -c)"
+
+  # 137 = 105 bytes for btrfs headers + 32 bytes for subvolume name MD5 hex string
+  if [ "$LAST_SNAPSHOT_DIFF" -le 137 ]; then
+    echo -e 'Live subvolume state:\t\t\e[0;32mclean\e[0m'
+  else
+    echo -e 'Live subvolume state:\t\t\e[1;31mdirty\e[0m'
+
+    if [ "$VERBOSE" == '-v' ]; then
+      LIVE_TRANSID="$(btrfs subvolume find-new ${SNAPSHOTS_SUBVOLUME}/${LAST_SNAPSHOT} 9999999999999999999 | awk '{print $4}')"
+      DIFF="$(btrfs subvolume find-new ${INFO_SUBVOLUME}/${TMPID} $(expr ${LIVE_TRANSID} - 1) 2> /dev/null | awk '{print $17}' | uniq)"
+
+      echo 'Created/changed files:'
+      for FILE in "$DIFF"; do
+        echo -n '  - /'
+        echo $FILE
+      done
+    fi
+  fi
+  
+  btrfs subvolume delete ${INFO_SUBVOLUME}/${TMPID} > /dev/null 2>&1
+}
+
 if ! mountpoint -q /run/btrfs-transient; then
   mkdir -p /run/btrfs-transient
   mount "$BTRFS_DEVICE" /run/btrfs-transient
 fi
 
 cd /run/btrfs-transient
-
-COMMAND="$1"
 
 case "$COMMAND" in
   'commit')
@@ -37,6 +84,38 @@ case "$COMMAND" in
   'rw')
     set_readonly 0
     ;;
+
+  'info')
+    get_state $@
+    ;;
+  
+  'help' | '--help' | '-h')
+    cat <<EOF
+Usage: $0 COMMAND [OPTION...]
+Controls a btrfs-transient-managed subvovume.
+
+btrfs-transients allows to use a read-only and transient btrfs subvolume as a
+Linux system root filesystem. The rationale is that any changes the rootfs is
+reverted at the next reboot unless those changes are commited.
+
+At boot, the last commited snapshot is copied back onto the booting root
+filesystem, effectively reverting any uncommited changes to the filesystem.
+Before overwriting the roofs, it is snapshot as a transient snapshot, as a last
+resort if important uncommited data were lost after a reboot.
+
+Commands:
+  ro          configure the rootfs as read-only
+  rw          configure the rootfs as writeable
+  commit      snapshots the live rootfs
+  info [-v]   display the current state of the btrfs rootfs
+  help        display this help message
+
+Copyright © 2018 Antoine POPINEAU
+EOF
+    ;;
+  
+  *)
+    echo 'ERROR: no valid command was provided. Use --help to get help.'
 esac
 
 cd /
