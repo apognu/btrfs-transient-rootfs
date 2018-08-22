@@ -8,6 +8,7 @@ arch=('any')
 depends=('mkinitcpio')
 source=('git://github.com/apognu/btrfs-transient-rootfs')
 sha1sums=('SKIP')
+backup=('etc/btrfs-transient.sh')
 
 package() {
   cd "${srcdir}/btrfs-transient-rootfs"
