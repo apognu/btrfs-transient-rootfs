@@ -51,7 +51,7 @@ get_state() {
       DIFF="$(btrfs subvolume find-new ${INFO_SUBVOLUME}/${TMPID} $(expr ${LIVE_TRANSID} - 1) 2> /dev/null | awk '{print $17}' | uniq)"
 
       echo 'Created/changed files:'
-      for FILE in "$DIFF"; do
+      for FILE in $DIFF; do
         echo -n '  - /'
         echo $FILE
       done
