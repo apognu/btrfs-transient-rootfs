@@ -11,7 +11,7 @@ run_hook() {
   mount "$BTRFS_DEVICE" /run/btrfs-transient
   cd /run/btrfs-transient
   
-  mkdir -p "$SNAPSHOTS_SUBVOLUME" "$TRANSIENT_SUBVOLUME"
+  mkdir -p "$SNAPSHOTS_SUBVOLUME" "$TRANSIENT_SUBVOLUME" "$INFO_SUBVOLUME"
 
   LAST_SNAPSHOT="$(ls -1 $SNAPSHOTS_SUBVOLUME | tail -1)"
 

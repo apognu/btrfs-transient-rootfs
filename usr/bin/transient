@@ -2,8 +2,6 @@
 
 . /etc/btrfs-transient.sh
 
-INFO_SUBVOLUME='/run/btrfs-transient/__transient/info'
-
 COMMAND="$1"; shift
 ARGS="$@"
 
